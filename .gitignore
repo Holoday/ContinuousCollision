@@ -28,11 +28,8 @@
 /*.pidb
 /*.user
 
-# Build references
-[Rr]esources/*.dll
-
-# Symlink to KSP directory
-KSPdirlink
+# Symlink to references in KSP directory
+Managed
 
 # OS Specific
 .DS_STORE*
