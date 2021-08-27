@@ -30,6 +30,7 @@
 
 # Symlink to references in KSP directory
 Managed
+ContinuousCollision/Managed
 
 # Build products and files generated during gameplay
 GameData/ContinuousCollision/Plugins/
