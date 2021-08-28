@@ -33,6 +33,7 @@ Managed
 ContinuousCollision/Managed
 
 # Build products and files generated during gameplay
+GameData/ContinuousCollision/Plugins
 GameData/ContinuousCollision/Plugins/
 
 # OS Specific
