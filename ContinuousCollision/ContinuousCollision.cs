@@ -153,17 +153,11 @@ public class ContinuousCollision : MonoBehaviour
 
         if (desireContinuous)
         {
-            if (!currentlyContinuous)
-            {
-                SetVesselCollisionMode(vessel, CollisionDetectionMode.ContinuousDynamic);
-            }
+            if (!currentlyContinuous) SetVesselCollisionMode(vessel, CollisionDetectionMode.ContinuousDynamic);
         }
         else
         {
-            if (currentlyContinuous)
-            {
-                SetVesselCollisionMode(vessel, CollisionDetectionMode.Discrete);
-            }
+            if (currentlyContinuous) SetVesselCollisionMode(vessel, CollisionDetectionMode.Discrete);
         }
     }
 
