@@ -1,4 +1,5 @@
 ﻿using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using KSP;
 
@@ -10,9 +11,13 @@ public class ContinuousCollision : MonoBehaviour
     private ContinuousCollisionGUI GUI;
     private int rigidbodyCount = 0;
 
+    private bool applyAuto = false;
+    public static List<Vessel> loadedVessels;
+
     private void Start()
     {
-        Debug.Log("ContinuousCollision is running...");
+        Debug.Log("[ContinuousCollision]: ContinuousCollision is running...");
+
         GUI = gameObject.AddComponent<ContinuousCollisionGUI>();
         GUI.StartCoroutines();
         GUI.AddToolbarButton();
@@ -22,7 +27,11 @@ public class ContinuousCollision : MonoBehaviour
     {
         if (!asyncSetAllRigidBodiesIsRunning)
         {
-            if (GUI.ApplyAtOnce)
+            if (GUI.desireAuto != applyAuto)
+            {
+                UpdateAutoEnable(GUI.desireAuto);
+            }
+            else if (GUI.ApplyAtOnce)
             {
                 setAllRigidBodies(GUI.DesiredCollisionMode);
                 GUI.ApplyAtOnce = GUI.ApplyAsync = false;
@@ -75,7 +84,7 @@ public class ContinuousCollision : MonoBehaviour
             yield return new WaitForFixedUpdate();
         }
 
-        Debug.Log("All rigidbodies updated. (async)");
+        Debug.Log("[ContinuousCollision]: All rigidbodies updated. (async)");
         asyncSetAllRigidBodiesIsRunning = false;
         GUI.isApplyingAsync = false;
     }
@@ -88,8 +97,97 @@ public class ContinuousCollision : MonoBehaviour
         {
             rigidbodies[i].collisionDetectionMode = collisionDetectionMode;
         }
-        Debug.Log("All rigidbodies updated.");
+        Debug.Log("[ContinuousCollision]: All rigidbodies updated.");
         rigidbodyCount = rbLen;
+    }
+
+    private void UpdateAutoEnable(bool enable)
+    {
+        applyAuto = enable;
+
+        if (applyAuto)
+        {
+            Debug.Log("[ContinuousCollision]: Started automatic updates.");
+            StartCoroutine(UpdateAuto());
+        }
+        else
+        {
+            Debug.Log("[ContinuousCollision]: Stopped automatic updates.");
+            StopCoroutine(UpdateAuto());
+        }
+    }
+
+    public IEnumerator UpdateAuto()
+    {
+        while (true)
+        {
+            loadedVessels = FlightGlobals.VesselsLoaded;
+
+            foreach (Vessel vsl in loadedVessels)
+            {
+                Vector3 vslVel = vsl.GetObtVelocity();
+                bool desireContinuous = false;
+
+                foreach (Vessel otherVsl in loadedVessels)
+                {
+                    if (otherVsl == vsl) continue;
+
+                    float relVelMag = Mathf.Abs((otherVsl.GetObtVelocity() - vslVel).magnitude);
+
+                    if (relVelMag > 100 && Vector3d.Distance(vsl.GetTransform().position, otherVsl.GetTransform().position) - 50 <= relVelMag) {
+                        desireContinuous = true;
+                        break;
+                    }
+                }
+
+                SetVesselCollisionContinuous(vsl, desireContinuous);
+            }
+
+            yield return new WaitForSeconds(1);
+        }
+    }
+
+    private void SetVesselCollisionContinuous(Vessel vessel, bool desireContinuous)
+    {
+        
+        bool currentlyContinuous = IsVesselContinuous(vessel);
+
+        if (desireContinuous)
+        {
+            if (!currentlyContinuous)
+            {
+                SetVesselCollisionMode(vessel, CollisionDetectionMode.ContinuousDynamic);
+            }
+        }
+        else
+        {
+            if (currentlyContinuous)
+            {
+                SetVesselCollisionMode(vessel, CollisionDetectionMode.Discrete);
+            }
+        }
+    }
+
+    private bool IsVesselContinuous(Vessel vessel)
+    {
+        try
+        {
+            return vessel.Parts[0].Rigidbody.collisionDetectionMode == CollisionDetectionMode.ContinuousDynamic;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private void SetVesselCollisionMode(Vessel vessel, CollisionDetectionMode collisionMode)
+    {
+        foreach (Part part in vessel.Parts)
+        {
+            part.Rigidbody.collisionDetectionMode = collisionMode;
+        }
+
+        Debug.Log($"[ContinuousCollision]: Set the collision mode of {vessel.GetDisplayName()} to {collisionMode.ToString()}.");
     }
 }
 
