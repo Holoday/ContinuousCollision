@@ -149,7 +149,6 @@ public class ContinuousCollision : MonoBehaviour
 
     private void SetVesselCollisionContinuous(Vessel vessel, bool desireContinuous)
     {
-        
         bool currentlyContinuous = IsVesselContinuous(vessel);
 
         if (desireContinuous)
