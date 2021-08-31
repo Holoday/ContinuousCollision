@@ -169,7 +169,7 @@ internal class ContinuousCollisionGUI : MonoBehaviour
     {
         if (!addedAppLauncherButton)
         {
-            Texture buttonTexture = GameDatabase.Instance.GetTexture("ContinuousCollision/Textures/icon", false);
+            Texture buttonTexture = GameDatabase.Instance.GetTexture("ContinuousCollisions/Textures/icon", false);
             ApplicationLauncher.Instance.AddModApplication(ToggleGui, ToggleGui, null, null, null, null, ApplicationLauncher.AppScenes.FLIGHT, buttonTexture);
             addedAppLauncherButton = true;
         }
