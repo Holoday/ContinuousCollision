@@ -1,4 +1,4 @@
-Continuous Collisions 0.2.2
+# Continuous Collisions 0.2.2
 _______________________________
 
 This mod adds Continuous Dynamic type Collisions to KSP — vessels will no longer phase through each other when travelling at high speeds.
