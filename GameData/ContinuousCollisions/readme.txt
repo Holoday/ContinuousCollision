@@ -1,4 +1,4 @@
-Continuous Collision 0.2.2
+Continuous Collisions 0.2.2
 _______________________________
 
 Changes:
