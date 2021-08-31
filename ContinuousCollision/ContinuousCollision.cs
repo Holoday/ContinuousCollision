@@ -139,6 +139,8 @@ public class ContinuousCollision : MonoBehaviour
 
             foreach (Vessel vsl in loadedVessels)
             {
+                if (vsl.packed) continue;
+
                 vslVel = vsl.GetObtVelocity();
                 desireContinuous = false;
 
@@ -146,7 +148,7 @@ public class ContinuousCollision : MonoBehaviour
                 {
                     if (otherVsl.persistentId == vsl.persistentId) continue;
 
-                    relVelMag = Mathf.Abs((otherVsl.GetObtVelocity() - vslVel).magnitude);
+                    relVelMag = Mathf.Abs((otherVsl.GetObtVelocity() - vslVel).magnitude) + (float)otherVsl.acceleration.magnitude;
 
                     if (relVelMag > 100 && Vector3d.Distance(vsl.GetTransform().position, otherVsl.GetTransform().position) - vesselWidth <= relVelMag)
                     {
@@ -157,10 +159,11 @@ public class ContinuousCollision : MonoBehaviour
 
                 SetVesselCollisionContinuous(vsl, desireContinuous);
             }
+
             yield return new WaitForSeconds(1);
         }
     }
-    
+
     private void SetVesselCollisionContinuous(Vessel vessel, bool desireContinuous)
     {
         bool currentlyContinuous = IsVesselContinuous(vessel);

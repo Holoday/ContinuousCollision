@@ -33,8 +33,8 @@ Managed
 ContinuousCollision/Managed
 
 # Build products and files generated during gameplay
-GameData/ContinuousCollision/Plugins
-GameData/ContinuousCollision/Plugins/
+GameData/ContinuousCollisions/Plugins
+GameData/ContinuousCollisions/Plugins/
 
 # OS Specific
 .DS_STORE*
@@ -49,3 +49,4 @@ netkan.exe
 
 # .swp files from vim (temporary files that vim creates when editing a file)
 *.swp
+GameData/ContinuousCollisions/Textures/Source/
