@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using KSP;
@@ -13,6 +13,11 @@ public class ContinuousCollision : MonoBehaviour
 
     private bool applyAuto = false;
     public static List<Vessel> loadedVessels;
+
+    // Perhaps link up to a calculation of each vessels' width; for now,
+    // a very large size of 50 is assumed as creating a vessel larger than
+    // that is difficult.
+    private const float vesselWidth = 50;
 
     private void Start()
     {
@@ -55,6 +60,8 @@ public class ContinuousCollision : MonoBehaviour
             GUI.DrawGUI();
         }
     }
+
+    #region Rigidbody Modification
 
     private IEnumerator asyncSetAllRigidBodies(CollisionDetectionMode collisionDetectionMode)
     {
@@ -101,6 +108,8 @@ public class ContinuousCollision : MonoBehaviour
         rigidbodyCount = rbLen;
     }
 
+    #endregion
+
     private void UpdateAutoEnable(bool enable)
     {
         applyAuto = enable;
@@ -123,18 +132,24 @@ public class ContinuousCollision : MonoBehaviour
         {
             loadedVessels = FlightGlobals.VesselsLoaded;
 
+            // Save on some GC.
+            Vector3 vslVel;
+            float relVelMag;
+            bool desireContinuous;
+
             foreach (Vessel vsl in loadedVessels)
             {
-                Vector3 vslVel = vsl.GetObtVelocity();
-                bool desireContinuous = false;
+                vslVel = vsl.GetObtVelocity();
+                desireContinuous = false;
 
                 foreach (Vessel otherVsl in loadedVessels)
                 {
-                    if (otherVsl == vsl) continue;
+                    if (otherVsl.persistentId == vsl.persistentId) continue;
 
-                    float relVelMag = Mathf.Abs((otherVsl.GetObtVelocity() - vslVel).magnitude);
+                    relVelMag = Mathf.Abs((otherVsl.GetObtVelocity() - vslVel).magnitude);
 
-                    if (relVelMag > 100 && Vector3d.Distance(vsl.GetTransform().position, otherVsl.GetTransform().position) - 50 <= relVelMag) {
+                    if (relVelMag > 100 && Vector3d.Distance(vsl.GetTransform().position, otherVsl.GetTransform().position) - vesselWidth <= relVelMag)
+                    {
                         desireContinuous = true;
                         break;
                     }
@@ -142,11 +157,10 @@ public class ContinuousCollision : MonoBehaviour
 
                 SetVesselCollisionContinuous(vsl, desireContinuous);
             }
-
             yield return new WaitForSeconds(1);
         }
     }
-
+    
     private void SetVesselCollisionContinuous(Vessel vessel, bool desireContinuous)
     {
         bool currentlyContinuous = IsVesselContinuous(vessel);
@@ -183,4 +197,3 @@ public class ContinuousCollision : MonoBehaviour
         Debug.Log($"[ContinuousCollision]: Set the collision mode of {vessel.GetDisplayName()} to {collisionMode.ToString()}.");
     }
 }
-
