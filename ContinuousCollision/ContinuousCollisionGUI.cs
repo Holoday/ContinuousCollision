@@ -2,95 +2,90 @@ using UnityEngine;
 using System.Collections;
 using KSP.UI.Screens;
 using System.Linq;
+using System.IO;
 
 internal class ContinuousCollisionGUI : MonoBehaviour
 {
     // Internal GUI logic variables.
-    private Rect windowRect = new Rect(100, 100, 0, 0);
+    private Rect windowRect = new Rect(Screen.width * 0.75f, Screen.height / 2, 0, 0 );
     private Vector2 scrollPositionAllVessels;
     private bool showAutoStats = false;
-    // Used for the toggle switches, as to only allow one to be enabled at once,
-    // defaulting to Discrete Collision.
-    private bool[] modeToggleBools = new bool[] { false, false, false, true, false };
-    private bool[] newModeToggleBools = new bool[] { false, false, false, true, false };
-    private float framesPerSecond = 0;
-    // Internal collision mode logic variables
-    private CollisionDetectionMode desiredCollisionMode = CollisionDetectionMode.Discrete;
-    private bool isApplied;
 
     // Public read only variables
-    public CollisionDetectionMode DesiredCollisionMode { get { return desiredCollisionMode; } }
-    public CollisionDetectionMode CurrentCollisionMode = CollisionDetectionMode.Discrete;
-    public bool desireAuto = true;
-    public bool ApplyAtOnce;
-    public bool ApplyAsync;
-
-    public bool isApplyingAsync = false;
-    public int rigidbodyCount = 0;
+    public bool enableCC = true;
+    public bool useSpeculative = true;
 
     // Toolbar.
     public static bool addedAppLauncherButton = false;
     public static bool guiEnabled = false;
 
+    // Config variables.
+    string kspRoot;
+    string pluginDataPath;
+    string configPath;
+
+    void Start()
+    {
+        kspRoot = KSPUtil.ApplicationRootPath;
+        pluginDataPath = Path.Combine(kspRoot, "GameData", "ContinuousCollisions", "PluginData");
+        configPath = Path.Combine(pluginDataPath, "settings.cfg");
+        LoadSettings();
+    }
+    
     public void DrawGUI() =>
-        windowRect = GUILayout.Window(0, windowRect, FillWindow, "Continuous Collision", GUILayout.Height(1), GUILayout.Width(350));
-    public void StartCoroutines() =>
-        StartCoroutine(setFPS(0.5f));
+        windowRect = GUILayout.Window(GUIUtility.GetControlID(FocusType.Passive), windowRect, FillWindow, "Continuous Collision", GUILayout.Height(1), GUILayout.Width(200));
 
     private void FillWindow(int windowID)
     {
+        if (GUI.Button(new Rect(windowRect.width - 18, 2, 16, 16), ""))
+            ToggleGui();
+
         GUIStyle boxStyle = GUI.skin.GetStyle("Box");
 
         GUILayout.BeginVertical(boxStyle);
-        GUILayout.Label("This is an early release, not meant for stable use. " +
-            "We are not responsible if your game crashes or otherwise breaks.");
+            GUILayout.Label("This mod is experimental, it may break your game, destroy your craft or just not work.");
         GUILayout.EndVertical();
 
-        desireAuto = GUILayout.Toggle(desireAuto, "Auto");
+        GUILayout.BeginVertical();
 
-        if (!desireAuto)
+        enableCC = GUILayout.Toggle(enableCC, "Enabled");
+        useSpeculative = GUILayout.Toggle(useSpeculative, "Use Speculative Collision");
+        if (useSpeculative)
         {
-            GUILayout.Label("Select Collision Mode");
-
-            newModeToggleBools[0] = GUILayout.Toggle(modeToggleBools[0], " Continuous-Continuous (best, least performance.)");
-            newModeToggleBools[1] = GUILayout.Toggle(modeToggleBools[1], " Continuous");
-            newModeToggleBools[2] = GUILayout.Toggle(modeToggleBools[2], " Continuous-Speculative");
-            newModeToggleBools[3] = GUILayout.Toggle(modeToggleBools[3], " Discrete (defualt, worst, most performance.)");
-            if (!isApplyingAsync)
-            {
-                VerifyToggles();
-                AssertainDesiredCollisionMode();
-                isApplied = DesiredCollisionMode == CurrentCollisionMode;
-            }
-
-            GUILayout.Label(isApplied ? $"All changes applied. Number of rigidbodies updated: {rigidbodyCount.ToString()}." : "Not Applied Yet!");
-
-            if (GUILayout.Button("Apply") && !isApplyingAsync)
-            {
-                ApplyAtOnce = true;
-                ApplyAsync = false;
-            }
-            if (GUILayout.Button(isApplyingAsync ? "Applying Async..." : "Apply Async") && !isApplyingAsync)
-            {
-                ApplyAtOnce = false;
-                ApplyAsync = true;
-            }
+            GUILayout.Label("Speculative collision is slower, less buggy, and produces slightly more damage.");
         }
         else
+        {
+            GUILayout.Label("With speculative collision disabled you must switch away from projectiles before a collision.");
+        } 
+
+        GUILayout.EndVertical();
+        
+        if (enableCC)
         {
             if (showAutoStats = GUILayout.Toggle(showAutoStats, "Show Stats"))
             {
                 GUILayout.BeginVertical(boxStyle);
-                scrollPositionAllVessels = GUILayout.BeginScrollView(scrollPositionAllVessels, GUILayout.Height(300));
+                scrollPositionAllVessels = GUILayout.BeginScrollView(scrollPositionAllVessels, GUILayout.Height(400));
 
                 foreach (Vessel vessel in ContinuousCollision.loadedVessels)
                 {
+                    int continuousParts = vessel.Parts.Count(p => p.Rigidbody.collisionDetectionMode == ContinuousCollision.continuousCollisionMode);
+                    if (continuousParts > 0)
+                    {
+                        GUI.contentColor = Color.red;
+                    }
+                    if (vessel.packed)
+                    {
+                        GUI.contentColor = Color.grey;
+                    }
+
                     GUILayout.BeginVertical(boxStyle);
                         GUILayout.Label(vessel.GetDisplayName());
-                        int continuousParts = vessel.Parts.Count(p => p.Rigidbody.collisionDetectionMode == CollisionDetectionMode.ContinuousDynamic);
                         GUILayout.Label($"Continuous Rigidbodies: {continuousParts.ToString()}");
                         GUILayout.Label($"Unpacked: {!vessel.packed}");
                     GUILayout.EndVertical();
+                    GUI.contentColor = Color.white;
                 }
 
                 GUILayout.EndScrollView();
@@ -98,70 +93,30 @@ internal class ContinuousCollisionGUI : MonoBehaviour
             }
         }
 
-        GUILayout.Label($"Current FPS: {framesPerSecond.ToString()}");
-
         GUI.DragWindow(new Rect(0, 0, 10000, 500));
     }
 
-    private void VerifyToggles()
+    void SaveSettings()
     {
-        for (int i = 0; i < newModeToggleBools.Length; ++i)
-        {
-            if (newModeToggleBools[i] != modeToggleBools[i])
-            {
-                for (int k = 0; k < modeToggleBools.Length; ++k)
-                {
-                    modeToggleBools[k] = false;
-                }
-                modeToggleBools[i] = true;
-                break;
-            }
-        }
+        if (!Directory.Exists(pluginDataPath))
+            Directory.CreateDirectory(pluginDataPath);
+
+        ConfigNode settingsFile = new ConfigNode();
+        ConfigNode settingsNode = new ConfigNode("ContinuousCollisionsSettings");
+        settingsFile.AddNode(settingsNode);
+        settingsNode.SetValue("enabled", enableCC, true);
+        settingsNode.SetValue("useSpeculative", useSpeculative, true);
+        settingsFile.Save(configPath);
     }
 
-    private void AssertainDesiredCollisionMode()
+    void LoadSettings()
     {
-        // Awful, but necessary. Feel a bit like yanderedev.
-        // In fact, all of this awful GUI code feels like that.
-        if (modeToggleBools[0])
-        {
-            desiredCollisionMode = CollisionDetectionMode.ContinuousDynamic;
-            return;
-        }
-        if (modeToggleBools[1])
-        {
-            desiredCollisionMode = CollisionDetectionMode.Continuous;
-            return;
-        }
-        if (modeToggleBools[2])
-        {
-            desiredCollisionMode = CollisionDetectionMode.ContinuousSpeculative;
-            return;
-        }
-        if (modeToggleBools[3])
-        {
-            desiredCollisionMode = CollisionDetectionMode.Discrete;
-            return;
-        }
-    }
+        if (!File.Exists(configPath)) return;
 
-    public IEnumerator setFPS(float refreshRate)
-    {
-        int frameCount = 0;
-        float timeCount = 0f;
-        while (true)
-        {
-            yield return null;
-            if (timeCount > refreshRate)
-            {
-                framesPerSecond = frameCount / timeCount;
-                frameCount = 0;
-                timeCount = 0f;
-                continue;
-            }
-            timeCount += Time.deltaTime;
-            ++frameCount;
-        }
+        ConfigNode settingsFile = ConfigNode.Load(configPath);
+        ConfigNode settingsNode = settingsFile.GetNode("ContinuousCollisionsSettings");
+        settingsNode.TryGetValue("enabled", ref enableCC);
+        settingsNode.TryGetValue("useSpeculative", ref useSpeculative);
     }
 
     #region Toolbar Config.
@@ -181,7 +136,12 @@ internal class ContinuousCollisionGUI : MonoBehaviour
         else EnableGui();
     }
     void EnableGui() => guiEnabled = true;
-    void DisableGui() => guiEnabled = false;
+    void DisableGui()
+    {
+        guiEnabled = false;
+        SaveSettings();
+    }
+
     #endregion
 }
 

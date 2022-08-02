@@ -3,53 +3,91 @@ using System.Collections.Generic;
 using UnityEngine;
 using KSP;
 
+/*class CollisionEvent
+{
+    public EventReport evt;
+    public float time;
+    public float deltaTime;
+    public float fixedDeltaTime;
+
+    public CollisionEvent(EventReport e, float t, float dt, float fdt)
+    {
+        evt = e;
+        time = t;
+        deltaTime = dt;
+        fixedDeltaTime = fdt;
+    } 
+}*/
+
 [KSPAddon(KSPAddon.Startup.Flight, false)]
 public class ContinuousCollision : MonoBehaviour
 {
-    private int asyncDeltaI = 200;
-    private bool asyncSetAllRigidBodiesIsRunning = false;
     private ContinuousCollisionGUI GUI;
-    private int rigidbodyCount = 0;
 
+    private Coroutine autoCoroutine;
     private bool applyAuto = false;
+    private bool applySpeculative = false;
     public static List<Vessel> loadedVessels;
+    public static CollisionDetectionMode continuousCollisionMode = CollisionDetectionMode.ContinuousDynamic;
 
     // Perhaps link up to a calculation of each vessels' width; for now,
     // a very large size of 50 is assumed as creating a vessel larger than
     // that is difficult.
     private const float vesselWidth = 50;
 
+
     private void Start()
     {
-        Debug.Log("[ContinuousCollision]: ContinuousCollision is running...");
-
         GUI = gameObject.AddComponent<ContinuousCollisionGUI>();
-        GUI.StartCoroutines();
         GUI.AddToolbarButton();
     }
 
+    // Log collisions for debugging.
+
+    /*List<Part> structuralParts;
+    List<CollisionEvent> structuralCollisions;
+
+    void registerCollisionEvents()
+    {
+        GameEvents.onCollision.Add(OnCollision);
+        GameEvents.OnCollisionEnhancerHit.Add(OnCollisionEnhancerHit);
+        structuralParts = new List<Part>();
+        structuralCollisions = new List<CollisionEvent>();
+    }
+
+    private void OnCollision(EventReport Evt)
+    {
+        Debug.Log(Evt.ToString());
+        string pName = Evt.origin.partInfo.name;
+
+        if (pName == "structuralIBeam3")
+        {
+            if (!structuralParts.Contains(Evt.origin))
+            {
+                structuralParts.Add(Evt.origin);
+                CollisionEvent clEvent = new CollisionEvent(Evt, Time.time, Time.deltaTime, Time.fixedDeltaTime);
+                structuralCollisions.Add(clEvent);
+            } 
+        }
+    }
+
+    private void OnCollisionEnhancerHit(Part p, RaycastHit hit)
+    {
+        Debug.Log(p.ToString());
+        Debug.Log(hit.ToString());
+    }*/
+
     private void Update()
     {
-        if (!asyncSetAllRigidBodiesIsRunning)
+        if (GUI.enableCC != applyAuto)
         {
-            if (GUI.desireAuto != applyAuto)
-            {
-                UpdateAutoEnable(GUI.desireAuto);
-            }
-            else if (GUI.ApplyAtOnce)
-            {
-                setAllRigidBodies(GUI.DesiredCollisionMode);
-                GUI.ApplyAtOnce = GUI.ApplyAsync = false;
-                GUI.CurrentCollisionMode = GUI.DesiredCollisionMode;
-                GUI.rigidbodyCount = rigidbodyCount;
-            }
-            else if (GUI.ApplyAsync)
-            {
-                StartCoroutine(asyncSetAllRigidBodies(GUI.DesiredCollisionMode));
-                GUI.ApplyAtOnce = GUI.ApplyAsync = false;
-                GUI.CurrentCollisionMode = GUI.DesiredCollisionMode;
-                GUI.rigidbodyCount = rigidbodyCount;
-            }
+            UpdateAutoEnable(GUI.enableCC);
+        }
+        if (GUI.useSpeculative != applySpeculative)
+        {
+            applySpeculative = GUI.useSpeculative;
+            continuousCollisionMode = applySpeculative ? CollisionDetectionMode.ContinuousSpeculative : CollisionDetectionMode.ContinuousDynamic;
+            SetAllRigidBodies(CollisionDetectionMode.Discrete);
         }
     }
 
@@ -60,43 +98,7 @@ public class ContinuousCollision : MonoBehaviour
             GUI.DrawGUI();
         }
     }
-
-    #region Rigidbody Modification
-
-    private IEnumerator asyncSetAllRigidBodies(CollisionDetectionMode collisionDetectionMode)
-    {
-        GUI.isApplyingAsync = true;
-        asyncSetAllRigidBodiesIsRunning = true;
-        Rigidbody[] rigidbodies = GameObject.FindObjectsOfType<Rigidbody>();
-        int rbLen = rigidbodies.Length;
-        rigidbodyCount = rbLen;
-        // Updates the list of rigidbodies <asyncDeltaI> at a time
-        // then waits for the next FixedUpdate cycle.
-        //
-        // Unclear whether this is actually more "efficient" than
-        // just doing this all on one frame.
-        // TODO: ~ ~ ~ ~ TEST PERFORMANCE ~ ~ ~ ~
-
-        int i = -1;
-        int deltaI;
-        while ((i + 1) < rbLen)
-        {
-            deltaI = 0;
-            while (deltaI < asyncDeltaI && (i + 1) < rbLen)
-            {
-                ++i;
-                ++deltaI;
-                rigidbodies[i].collisionDetectionMode = collisionDetectionMode;
-            }
-            yield return new WaitForFixedUpdate();
-        }
-
-        Debug.Log("[ContinuousCollision]: All rigidbodies updated. (async)");
-        asyncSetAllRigidBodiesIsRunning = false;
-        GUI.isApplyingAsync = false;
-    }
-
-    private protected void setAllRigidBodies(CollisionDetectionMode collisionDetectionMode)
+    private protected void SetAllRigidBodies(CollisionDetectionMode collisionDetectionMode)
     {
         Rigidbody[] rigidbodies = GameObject.FindObjectsOfType<Rigidbody>();
         int rbLen = rigidbodies.Length;
@@ -104,25 +106,23 @@ public class ContinuousCollision : MonoBehaviour
         {
             rigidbodies[i].collisionDetectionMode = collisionDetectionMode;
         }
-        Debug.Log("[ContinuousCollision]: All rigidbodies updated.");
-        rigidbodyCount = rbLen;
+        Debug.Log($"[ContinuousCollision]: Collision mode for all rigidbodies set to {collisionDetectionMode}.");
     }
-
-    #endregion
 
     private void UpdateAutoEnable(bool enable)
     {
         applyAuto = enable;
 
-        if (applyAuto)
+        if (enable)
         {
             Debug.Log("[ContinuousCollision]: Started automatic updates.");
-            StartCoroutine(UpdateAuto());
+            autoCoroutine = StartCoroutine(UpdateAuto());
         }
         else
         {
             Debug.Log("[ContinuousCollision]: Stopped automatic updates.");
-            StopCoroutine(UpdateAuto());
+            StopCoroutine(autoCoroutine);
+            SetAllRigidBodies(CollisionDetectionMode.Discrete);
         }
     }
 
@@ -139,7 +139,7 @@ public class ContinuousCollision : MonoBehaviour
 
             foreach (Vessel vsl in loadedVessels)
             {
-                if (vsl.packed) continue;
+                //if (vsl.packed && !IsVesselContinuous(vsl)) continue;
 
                 vslVel = vsl.GetObtVelocity();
                 desireContinuous = false;
@@ -170,7 +170,7 @@ public class ContinuousCollision : MonoBehaviour
 
         if (desireContinuous)
         {
-            if (!currentlyContinuous) SetVesselCollisionMode(vessel, CollisionDetectionMode.ContinuousDynamic);
+            if (!currentlyContinuous) SetVesselCollisionMode(vessel, continuousCollisionMode);
         }
         else
         {
@@ -182,7 +182,7 @@ public class ContinuousCollision : MonoBehaviour
     {
         try
         {
-            return vessel.Parts[0].Rigidbody.collisionDetectionMode == CollisionDetectionMode.ContinuousDynamic;
+            return vessel.Parts[0].Rigidbody.collisionDetectionMode == continuousCollisionMode;
         }
         catch
         {
@@ -197,6 +197,6 @@ public class ContinuousCollision : MonoBehaviour
             part.Rigidbody.collisionDetectionMode = collisionMode;
         }
 
-        Debug.Log($"[ContinuousCollision]: Set the collision mode of {vessel.GetDisplayName()} to {collisionMode.ToString()}.");
+        Debug.Log($"[ContinuousCollision]: Set the collision mode of {vessel.GetDisplayName()} to {collisionMode}.");
     }
 }
