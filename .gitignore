@@ -33,8 +33,8 @@ Managed
 ContinuousCollision/Managed
 
 # Build products and files generated during gameplay
-GameData/ContinuousCollisions/Plugins
-GameData/ContinuousCollisions/Plugins/
+#GameData/ContinuousCollisions/Plugins
+#GameData/ContinuousCollisions/Plugins/
 
 # OS Specific
 .DS_STORE*
