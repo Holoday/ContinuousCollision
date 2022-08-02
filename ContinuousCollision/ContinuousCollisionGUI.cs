@@ -33,7 +33,7 @@ internal class ContinuousCollisionGUI : MonoBehaviour
     }
     
     public void DrawGUI() =>
-        windowRect = GUILayout.Window(GUIUtility.GetControlID(FocusType.Passive), windowRect, FillWindow, "Continuous Collision", GUILayout.Height(1), GUILayout.Width(200));
+        windowRect = GUILayout.Window(GUIUtility.GetControlID(FocusType.Passive), windowRect, FillWindow, "Continuous Collisions", GUILayout.Height(1), GUILayout.Width(200));
 
     private void FillWindow(int windowID)
     {
