@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 # Continuous Collisions 1.0
+=======
+# Continuous Collisions 0.2.2
+>>>>>>> main
 _______________________________
 
 
