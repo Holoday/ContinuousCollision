@@ -3,6 +3,9 @@ using System.Collections;
 using KSP.UI.Screens;
 using System.Linq;
 using System.IO;
+using System;
+using System.Collections.Generic;
+using FFmpegOut;
 
 internal class ContinuousCollisionGUI : MonoBehaviour
 {
@@ -13,11 +16,16 @@ internal class ContinuousCollisionGUI : MonoBehaviour
 
     // Public read only variables
     public bool enableCC = true;
-    public bool useSpeculative = true;
+    public bool useSpeculative2 = false;
+    public bool useAutoSwitch = true;
+
+    public bool applySimple = false;
+    public bool disableRigidbodies;
 
     // Toolbar.
     public static bool addedAppLauncherButton = false;
     public static bool guiEnabled = false;
+    internal static bool guiHidden = false;
 
     // Config variables.
     string kspRoot;
@@ -30,13 +38,18 @@ internal class ContinuousCollisionGUI : MonoBehaviour
         pluginDataPath = Path.Combine(kspRoot, "GameData", "ContinuousCollisions", "PluginData");
         configPath = Path.Combine(pluginDataPath, "settings.cfg");
         LoadSettings();
+
+        GameEvents.onHideUI.Add(OnHideUI);
+        GameEvents.onShowUI.Add(OnShowUI);
     }
-    
+
     public void DrawGUI() =>
         windowRect = GUILayout.Window(GUIUtility.GetControlID(FocusType.Passive), windowRect, FillWindow, "Continuous Collisions", GUILayout.Height(1), GUILayout.Width(200));
 
     private void FillWindow(int windowID)
     {
+        if (guiHidden) return;
+
         if (GUI.Button(new Rect(windowRect.width - 18, 2, 16, 16), ""))
             ToggleGui();
 
@@ -49,15 +62,20 @@ internal class ContinuousCollisionGUI : MonoBehaviour
         GUILayout.BeginVertical();
 
         enableCC = GUILayout.Toggle(enableCC, "Enabled");
-        useSpeculative = GUILayout.Toggle(useSpeculative, "Use Speculative Collision");
-        if (useSpeculative)
+        useSpeculative2 = GUILayout.Toggle(useSpeculative2, "Use Speculative Collision");
+        if (useSpeculative2)
         {
-            GUILayout.Label("Speculative collision is slower, less buggy, and produces slightly more damage.");
+            GUILayout.Label("Speculative collision is more consistent, slower, and produces more damage, but sometimes causes phantom collisions.");
         }
-        else
+        useAutoSwitch = GUILayout.Toggle(useAutoSwitch, "Switch to Target");
+        if (!useSpeculative2 && !useAutoSwitch)
         {
-            GUILayout.Label("With speculative collision disabled you must switch away from projectiles before a collision.");
-        } 
+            GUILayout.Label("In order to prevent instability, Switch to Target must be enabled when Speculative Collision is disabled.");
+        }
+
+        //applySimple = GUILayout.Button("Apply Continuous Dynamic");
+
+        disableRigidbodies = GUILayout.Button("Disable Rigidbodies");
 
         GUILayout.EndVertical();
         
@@ -105,7 +123,8 @@ internal class ContinuousCollisionGUI : MonoBehaviour
         ConfigNode settingsNode = new ConfigNode("ContinuousCollisionsSettings");
         settingsFile.AddNode(settingsNode);
         settingsNode.SetValue("enabled", enableCC, true);
-        settingsNode.SetValue("useSpeculative", useSpeculative, true);
+        settingsNode.SetValue("useSpeculative2", useSpeculative2, false);
+        settingsNode.SetValue("useAutoSwitch", useAutoSwitch, true);
         settingsFile.Save(configPath);
     }
 
@@ -116,7 +135,8 @@ internal class ContinuousCollisionGUI : MonoBehaviour
         ConfigNode settingsFile = ConfigNode.Load(configPath);
         ConfigNode settingsNode = settingsFile.GetNode("ContinuousCollisionsSettings");
         settingsNode.TryGetValue("enabled", ref enableCC);
-        settingsNode.TryGetValue("useSpeculative", ref useSpeculative);
+        settingsNode.TryGetValue("useSpeculative2", ref useSpeculative2);
+        settingsNode.TryGetValue("useAutoSwitch", ref useAutoSwitch);
     }
 
     #region Toolbar Config.
@@ -140,6 +160,17 @@ internal class ContinuousCollisionGUI : MonoBehaviour
     {
         guiEnabled = false;
         SaveSettings();
+    }
+
+    private void OnShowUI() =>
+        OnToggleUI(false);
+
+    private void OnHideUI() =>
+        OnToggleUI(true);
+
+    private void OnToggleUI(bool hide)
+    {
+        guiHidden = hide;
     }
 
     #endregion
