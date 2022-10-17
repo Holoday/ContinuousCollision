@@ -3,8 +3,9 @@ _______________________________
 
 Changes:
 
- - Improved stability of collisions by limiting continuous collisions to certain part categories (structural, areo, control).
+ - Improved stability of collisions by limiting continuous collisions to certain part categories (structural, aero, control).
  - Added automatic switching to the larger of two colliding vessels for better stability.
+ - Code refactor.
 
 Info:
 
