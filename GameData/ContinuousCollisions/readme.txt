@@ -1,12 +1,10 @@
-Continuous Collisions 1.0.0
+Continuous Collisions 1.1.0
 _______________________________
 
 Changes:
 
- - Removed manual collision mode selection.
- - Added a setting to enable speculative dynamic collision, enabled by default. Speculative collision is slower and produces slightly more damage. With speculative disabled you need to switch away from projectiles before they hit or it will cause everything to explode.
- - Added saving and loading of settings.
-
+ - Improved stability of collisions by limiting continuous collisions to certain part categories (structural, areo, control).
+ - Added automatic switching to the larger of two colliding vessels for better stability.
 
 Info:
 
