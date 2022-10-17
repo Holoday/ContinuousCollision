@@ -77,7 +77,6 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="ContinuousCollisionGUI.cs" />
     <Compile Include="ContinuousCollision.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
