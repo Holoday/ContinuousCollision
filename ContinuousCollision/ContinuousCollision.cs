@@ -138,18 +138,11 @@ namespace ContinuousCollision
                             // Spectating a missile as it hits a target causes physics chaos.
                             // Our best chance is to switch to the reference frame of the more complex vessel so that the collision is more stable.
                             if (dynamic && InboundToTarget(x, y))
-                                vesselsToBeActive.Add(y);
+                                FlightGlobals.ForceSetActiveVessel(y);
                         }
                     }
 
                     SetVesselContinuous(x, continuous, dynamic);
-                }
-
-                if (vesselsToBeActive.Count > 0)
-                {
-                    var mostComplexTarget = vesselsToBeActive.OrderByDescending(v => v.parts.Count).FirstOrDefault();
-                    FlightGlobals.ForceSetActiveVessel(mostComplexTarget);
-                    vesselsToBeActive.Clear();
                 }
 
                 yield return new WaitForSeconds(updateInterval);
