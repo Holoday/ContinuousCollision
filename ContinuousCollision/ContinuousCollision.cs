@@ -80,8 +80,6 @@ namespace ContinuousCollision
             windowID = GUIUtility.GetControlID(FocusType.Passive);
             AddToolbarButton();
 
-            continuousTimestamps.Clear();
-
             if (Automatic)
                 SetUpdateAuto(true);
         }
