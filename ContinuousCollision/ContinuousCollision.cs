@@ -55,6 +55,7 @@ namespace ContinuousCollision
         // Settings.
         public static float vesselWidth = 50;
         public static float continuousCollisionSpeed = 100; // How fast do vessels need to be closing to trigger continuous collision detection?
+        public static CollisionDetectionMode defaultCollisionMode = CollisionDetectionMode.Discrete;
         public static CollisionDetectionMode continuousCollisionMode = CollisionDetectionMode.ContinuousDynamic;
         public static CollisionDetectionMode targetCollisionMode = CollisionDetectionMode.Continuous;
         public static HashSet<PartCategories> partCategories = new HashSet<PartCategories> {
@@ -79,6 +80,8 @@ namespace ContinuousCollision
             windowID = GUIUtility.GetControlID(FocusType.Passive);
             AddToolbarButton();
 
+            continuousTimestamps.Clear();
+
             if (Automatic)
                 SetUpdateAuto(true);
         }
@@ -102,8 +105,9 @@ namespace ContinuousCollision
         private IEnumerator UpdateAuto()
         {
             Vector3 velocity, position;
-            bool continuous, isTarget;
+            bool continuous, dynamic;
             float closingSpeed, distance;
+            List<Vessel> vesselsToBeActive = new List<Vessel>();
 
             while (true)
             {
@@ -113,7 +117,7 @@ namespace ContinuousCollision
                         continue;
 
                     continuous = false;
-                    isTarget = false;
+                    dynamic = false;
 
                     foreach (Vessel y in FlightGlobals.VesselsLoaded)
                     {
@@ -129,18 +133,23 @@ namespace ContinuousCollision
                             && distance <= closingSpeed * updateInterval)
                         {
                             continuous = true;
-                            isTarget = x.parts.Count > y.parts.Count;
+                            dynamic = dynamic || x.parts.Count < y.parts.Count;
 
                             // Spectating a missile as it hits a target causes physics chaos.
                             // Our best chance is to switch to the reference frame of the more complex vessel so that the collision is more stable.
-                            if (!isTarget && x == FlightGlobals.ActiveVessel && y == x.targetObject.GetVessel())
-                                FlightGlobals.ForceSetActiveVessel(y);
-
-                            break;
+                            if (dynamic && InboundToTarget(x, y))
+                                vesselsToBeActive.Add(y);
                         }
                     }
 
-                    SetVesselContinuous(x, continuous, isTarget);
+                    SetVesselContinuous(x, continuous, dynamic);
+                }
+
+                if (vesselsToBeActive.Count > 0)
+                {
+                    var mostComplexTarget = vesselsToBeActive.OrderByDescending(v => v.parts.Count).FirstOrDefault();
+                    FlightGlobals.ForceSetActiveVessel(mostComplexTarget);
+                    vesselsToBeActive.Clear();
                 }
 
                 yield return new WaitForSeconds(updateInterval);
@@ -162,22 +171,23 @@ namespace ContinuousCollision
             CDebug($"Collision mode for all rigidbodies set to {collisionDetectionMode}.");
         }
 
-        private static void SetVesselContinuous(Vessel vessel, bool continuous, bool isTarget)
+        private static void SetVesselContinuous(Vessel vessel, bool continuous, bool dynamic)
         {
-            if (GetVesselContinuous(vessel) == continuous)
+            CollisionDetectionMode mode = continuous ? (dynamic ? continuousCollisionMode : targetCollisionMode) : defaultCollisionMode;
+
+            if (GetVesselCollisionMode(vessel) == mode)
                 return;
 
-            CollisionDetectionMode mode = isTarget ? targetCollisionMode : continuousCollisionMode;
-            SetVesselCollisionMode(vessel, continuous ? mode : CollisionDetectionMode.Discrete);
+            SetVesselCollisionMode(vessel, mode);
         }
 
-        private static bool GetVesselContinuous(Vessel vessel)
+        private static CollisionDetectionMode GetVesselCollisionMode(Vessel vessel)
         {
             var rb = vessel?.rootPart?.Rigidbody;
             if (rb == null)
-                return false;
+                return defaultCollisionMode;
 
-            return rb.collisionDetectionMode != CollisionDetectionMode.Discrete;
+            return rb.collisionDetectionMode;
         }
 
         private static void SetVesselCollisionMode(Vessel vessel, CollisionDetectionMode collisionMode)
@@ -196,6 +206,13 @@ namespace ContinuousCollision
         public static void CDebug(string line)
         {
             Debug.Log($"[ContinuousCollisions]: {line}");
+        }
+
+        public static bool InboundToTarget(Vessel x, Vessel y)
+        {
+            return x == FlightGlobals.ActiveVessel
+                && y == x.targetObject.GetVessel()
+                && (float)y.parts.Count / x.parts.Count > 3;
         }
 
         #endregion
