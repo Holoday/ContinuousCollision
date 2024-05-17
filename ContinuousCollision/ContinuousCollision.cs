@@ -105,7 +105,6 @@ namespace ContinuousCollision
             Vector3 velocity, position;
             bool continuous, dynamic;
             float closingSpeed, distance;
-            List<Vessel> vesselsToBeActive = new List<Vessel>();
 
             while (true)
             {
@@ -135,7 +134,7 @@ namespace ContinuousCollision
 
                             // Spectating a missile as it hits a target causes physics chaos.
                             // Our best chance is to switch to the reference frame of the more complex vessel so that the collision is more stable.
-                            if (dynamic && InboundToTarget(x, y))
+                            if (dynamic && SpectatingInboundToTarget(x, y))
                                 FlightGlobals.ForceSetActiveVessel(y);
                         }
                     }
@@ -199,7 +198,7 @@ namespace ContinuousCollision
             Debug.Log($"[ContinuousCollisions]: {line}");
         }
 
-        public static bool InboundToTarget(Vessel x, Vessel y)
+        public static bool SpectatingInboundToTarget(Vessel x, Vessel y)
         {
             return x == FlightGlobals.ActiveVessel
                 && y == x.targetObject.GetVessel()
@@ -217,7 +216,7 @@ namespace ContinuousCollision
         }
 
         public void DrawGUI() =>
-            windowRect = GUILayout.Window(windowID, windowRect, FillWindow, "Continuous Collisions", GUILayout.Height(1), GUILayout.Width(200));
+            windowRect = GUILayout.Window(windowID, windowRect, FillWindow, "Continuous Collisions v1.2.0", GUILayout.Height(1), GUILayout.Width(200));
 
         private void FillWindow(int windowID)
         {
