@@ -1,4 +1,4 @@
-# Continuous Collisions 1.1.0
+# Continuous Collisions 1.2.0
 _______________________________
 
 
