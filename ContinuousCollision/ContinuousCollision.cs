@@ -59,10 +59,12 @@ namespace ContinuousCollision
         public static CollisionDetectionMode continuousCollisionMode = CollisionDetectionMode.ContinuousDynamic;
         public static CollisionDetectionMode targetCollisionMode = CollisionDetectionMode.Continuous;
         public static HashSet<PartCategories> partCategories = new HashSet<PartCategories> {
+            PartCategories.Propulsion,
+            PartCategories.Control,
             PartCategories.Structural,
             PartCategories.Aero,
-            PartCategories.Control,
-            PartCategories.FuelTank
+            PartCategories.Pods,
+            PartCategories.FuelTank,
         };
 
         #endregion
@@ -216,7 +218,7 @@ namespace ContinuousCollision
         }
 
         public void DrawGUI() =>
-            windowRect = GUILayout.Window(windowID, windowRect, FillWindow, "Continuous Collisions v1.2.0", GUILayout.Height(1), GUILayout.Width(200));
+            windowRect = GUILayout.Window(windowID, windowRect, FillWindow, "Continuous Collisions v1.2.1", GUILayout.Height(1), GUILayout.Width(200));
 
         private void FillWindow(int windowID)
         {
